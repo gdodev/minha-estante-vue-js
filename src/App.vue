@@ -43,7 +43,9 @@ function adicionarLivroTeste() {
 }
 
 function marcarPrimeiroComoLido() {
-  livros.value[1].lido = true;
+  if (livros.value.length >= 2) {
+    livros.value[1].lido = true;
+  }
 }
 
 const livrosLidos = computed(() => livros.value.filter((livro) => livro.lido));
@@ -88,6 +90,12 @@ const primeiroNome = computed({
   },
 });
 
+function limparEstante() {
+  livros.value = [];
+}
+
+const mostrarEstatisticas = ref(true);
+
 </script>
 
 <template>
@@ -101,9 +109,15 @@ const primeiroNome = computed({
   <p>Quantidade de livros: {{ livros.length }}</p>
   <button @click="aumentarMeta">+1 na meta</button>
   <br><button @click="adicionarLivroTeste">Adicionar livro teste</button>
-  <p>Primeiro livro está lido? {{ livros[1].lido }}</p>
+  <!-- só mostra a linha se existir o livro -->
+<p v-if="livros.length >= 2">Primeiro livro está lido? {{ livros[1].lido }}</p>
+
   <br><button @click="marcarPrimeiroComoLido">Marcar primeiro como lido</button>
-  <div style="padding: 0px 8px; border: 1px solid black; margin-top: 8px;">
+  <br><button @click="mostrarEstatisticas = !mostrarEstatisticas">
+  {{ mostrarEstatisticas ? 'Ocultar' : 'Mostrar' }} estatísticas
+</button>
+
+  <div v-show="mostrarEstatisticas" style="padding: 0px 8px; border: 1px solid black; margin-top: 8px;">
     <p>Quantidade de livros lidos: {{ totalLidos }}</p>
     <p>Quantidade de páginas lidas: {{ totalPaginasLidas }}</p>
     <p :class="{ 'meta-batida': progressoMeta === 100 }">Progresso da meta: {{ progressoMeta }}%</p>
@@ -113,12 +127,32 @@ const primeiroNome = computed({
 <p>Nome completo: {{ usuario.nome }}</p>
 <button @click="primeiroNome = 'João'">Trocar primeiro nome</button>
   </div>
+  
+  <template v-if="livros.length > 0">
+
   <div class="barra">
     <div class="barra-preenchida" :style="{ width: progressoMeta + '%', background: corBarra }"></div>
   </div>
-  <p :class="['card', livros[0].lido ? 'livro-lido' : '']">{{ livros[0].titulo }}</p>
+  <p v-if="progressoMeta === 0">Bora começar! 📖</p>
+  <p v-else-if="progressoMeta < 50">Bom começo, continue!</p>
+  <p v-else-if="progressoMeta < 100">Falta pouco! 🔥</p>
+  <p v-else>Meta batida! 🎉</p>
+  <!-- <p :class="['card', livros[0].lido ? 'livro-lido' : '']">{{ livros[0].titulo }}</p>
   <p :class="['card', livros[1].lido ? 'livro-lido' : '']">{{ livros[1].titulo }}</p>
-  <p :class="['card', livros[2].lido ? 'livro-lido' : '']">{{ livros[2].titulo }}</p>
+  <p :class="['card', livros[2].lido ? 'livro-lido' : '']">{{ livros[2].titulo }}</p> -->
+  <p
+  v-for="livro in livros"
+  :key="livro.id"
+  :class="['card', { 'livro-lido': livro.lido }]"
+>
+  {{ livro.titulo }}
+</p>
+
+
+  </template>
+
+
+  <button @click="limparEstante">Limpar estante</button>  
   <br><small>v{{ $versao }}</small>
 </template>
 
