@@ -24,6 +24,10 @@ const livros = ref([
     paginas: 256,
     lido: true,
     nota: 5,
+    genero: "Romance",
+    formato: "Físico",
+    tags: ["Clássico", "Favorito"],
+    resenha: "Capitu traiu ou não traiu? A dúvida que atravessa gerações.",
   },
   {
     id: 2,
@@ -32,6 +36,11 @@ const livros = ref([
     paginas: 310,
     lido: false,
     nota: 0,
+    genero: "Fantasia",
+    formato: "E-book",
+    tags: ["Emprestado"],
+    resenha:
+      "Um hobbit caseiro arrastado para uma aventura com anões, um mago e um dragão. Na lista para descobrir se Bilbo volta para casa a tempo do chá.",
   },
   {
     id: 3,
@@ -40,6 +49,10 @@ const livros = ref([
     paginas: 328,
     lido: true,
     nota: 4,
+    genero: "Ficção científica",
+    formato: "Audiobook",
+    tags: ["Clássico", "Releitura"],
+    resenha: "Assustadoramente atual. O Grande Irmão continua de olho.",
   },
 ]);
 
@@ -174,6 +187,40 @@ function logEvento(mensagem, evento) {
 function ocultarTodosDetalhes() {
   idsLivrosDetalhes.value.splice(0);
 }
+
+// Etapa #9
+function livroVazio() {
+  return {
+    titulo: "",
+    autor: "",
+    paginas: null,
+    genero: "",
+    formato: "",
+    tags: [],
+    lido: false,
+    resenha: "",
+  };
+}
+
+const novoLivro = reactive(livroVazio());
+
+function adicionarLivro() {
+  // O spread (...) cria um objeto NOVO com uma cópia dos campos do formulário.
+  // Sem ele, push(novoLivro) colocaria na lista o próprio objeto do formulário
+  // (mesma referência): limpar ou editar o formulário alteraria o livro também.
+  // A cópia é rasa, então o array de tags também precisa ser copiado com [...].
+  livros.value.push({
+    ...novoLivro,
+    tags: [...novoLivro.tags],
+    id: Date.now(),
+    nota: 0,
+  });
+  Object.assign(novoLivro, livroVazio());
+}
+
+const formularioValido = computed(() => {
+  return novoLivro.titulo.length > 0 && novoLivro.autor.length > 0;
+});
 </script>
 
 <template>
@@ -229,6 +276,13 @@ function ocultarTodosDetalhes() {
         <span :class="{ 'livro-lido': livro.lido }">
           {{ index + 1 }}. {{ livro.titulo }}, de {{ livro.autor }}
         </span>
+        <!-- Monta "gênero · formato": o array junta os dois valores,
+         o filter(Boolean) descarta os vazios ('' ou undefined) e o
+         join(" · ") une o que sobrou, com o separador só entre itens.
+         Assim um livro sem gênero mostra "(E-book)", e não "( · E-book)". -->
+        <small v-if="livro.genero || livro.formato">
+          ({{ [livro.genero, livro.formato].filter(Boolean).join(" · ") }})
+        </small>
         <!-- O modificador stop serve
          para o evento de clique não 
          subir para o li e disparar a
@@ -249,11 +303,14 @@ function ocultarTodosDetalhes() {
           Detalhes
         </button>
 
-        <ul v-if="idsLivrosDetalhes.includes(livro.id)">
-          <li v-for="(valor, chave) in livro" :key="chave">
-            {{ chave }}: {{ valor }}
-          </li>
-        </ul>
+        <div v-if="idsLivrosDetalhes.includes(livro.id)">
+          <ul>
+            <li v-for="(valor, chave) in livro" :key="chave">
+              {{ chave }}: {{ valor }}
+            </li>
+          </ul>
+          <input v-model="livro.titulo" />
+        </div>
       </li>
     </ul>
 
@@ -287,6 +344,90 @@ function ocultarTodosDetalhes() {
   </template>
 
   <button @click="limparEstante">Limpar estante</button>
+  <form @submit.prevent="adicionarLivro">
+    <h2>Adicionar livro</h2>
+
+    <label for="titulo">Título:</label><br />
+    <input
+      type="text"
+      id="titulo"
+      v-model.trim="novoLivro.titulo"
+      required
+    /><br />
+
+    <label for="autor">Autor:</label><br />
+    <input
+      type="text"
+      id="autor"
+      v-model.trim="novoLivro.autor"
+      required
+    /><br />
+
+    <label for="paginas">Páginas:</label><br />
+    <input
+      type="number"
+      id="paginas"
+      min="1"
+      v-model.number="novoLivro.paginas"
+    /><br />
+
+    <label for="genero">Gênero:</label><br />
+    <select id="genero" v-model="novoLivro.genero">
+      <option value="" disabled>Selecione...</option>
+      <option value="Romance">Romance</option>
+      <option value="Fantasia">Fantasia</option>
+      <option value="Ficção científica">Ficção científica</option>
+      <option value="Não ficção">Não ficção</option>
+    </select>
+
+    <fieldset>
+      <legend>Formato</legend>
+      <label
+        ><input type="radio" value="Físico" v-model="novoLivro.formato" />
+        Físico</label
+      >
+      <label
+        ><input type="radio" value="E-book" v-model="novoLivro.formato" />
+        E-book</label
+      >
+      <label
+        ><input type="radio" value="Audiobook" v-model="novoLivro.formato" />
+        Audiobook</label
+      >
+    </fieldset>
+
+    <fieldset>
+      <legend>Tags</legend>
+      <label
+        ><input type="checkbox" value="Favorito" v-model="novoLivro.tags" />
+        Favorito</label
+      >
+      <label
+        ><input type="checkbox" value="Clássico" v-model="novoLivro.tags" />
+        Clássico</label
+      >
+      <label
+        ><input type="checkbox" value="Emprestado" v-model="novoLivro.tags" />
+        Emprestado</label
+      >
+      <label
+        ><input type="checkbox" value="Releitura" v-model="novoLivro.tags" />
+        Releitura</label
+      >
+    </fieldset>
+
+    <label
+      ><input type="checkbox" v-model="novoLivro.lido" /> Já li este
+      livro</label
+    ><br />
+
+    <label for="resenha">Resenha:</label><br />
+    <textarea id="resenha" rows="4" v-model.lazy="novoLivro.resenha"></textarea
+    ><br />
+
+    <button type="submit" :disabled="!formularioValido">Adicionar</button>
+  </form>
+  <pre>{{ novoLivro }}</pre>
   <br /><small>v{{ $versao }}</small>
 </template>
 
