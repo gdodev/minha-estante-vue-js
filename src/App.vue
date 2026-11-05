@@ -58,6 +58,13 @@ const progressoMeta = computed(() => {
   return Math.min(100, Math.floor((totalLidos.value / usuario.metaAnual) * 100));
 });
 
+const corBarra = computed(() => {
+  if (progressoMeta.value >= 70) return 'green'; // verde: meta batida
+  if (progressoMeta.value >= 30) return 'yellow';  // amarelo: mais da metade
+  return 'red';                                 // vermelho: menos da metade
+});
+
+
 const livrosOrdenados = computed(() =>
   livros.value.toSorted((a, b) => a.titulo.localeCompare(b.titulo))
 );
@@ -99,12 +106,28 @@ const primeiroNome = computed({
   <div style="padding: 0px 8px; border: 1px solid black; margin-top: 8px;">
     <p>Quantidade de livros lidos: {{ totalLidos }}</p>
     <p>Quantidade de páginas lidas: {{ totalPaginasLidas }}</p>
-    <p>Progresso da meta: {{ progressoMeta }}%</p>
+    <p :class="{ 'meta-batida': progressoMeta === 100 }">Progresso da meta: {{ progressoMeta }}%</p>
     <p>Livros ordenados por nome: {{ livrosOrdenados.map((livro) => livro.titulo).join() }}</p>
     <p>Média das notas dos livros lidos: {{ mediaNotas }}</p>
     <p>Primeiro nome: {{ primeiroNome }}</p>
 <p>Nome completo: {{ usuario.nome }}</p>
 <button @click="primeiroNome = 'João'">Trocar primeiro nome</button>
   </div>
+  <div class="barra">
+    <div class="barra-preenchida" :style="{ width: progressoMeta + '%', background: corBarra }"></div>
+  </div>
+  <p :class="['card', livros[0].lido ? 'livro-lido' : '']">{{ livros[0].titulo }}</p>
+  <p :class="['card', livros[1].lido ? 'livro-lido' : '']">{{ livros[1].titulo }}</p>
+  <p :class="['card', livros[2].lido ? 'livro-lido' : '']">{{ livros[2].titulo }}</p>
   <br><small>v{{ $versao }}</small>
 </template>
+
+<style scoped>
+.barra { background: #ddd; border-radius: 8px; height: 16px; overflow: hidden; }
+.barra-preenchida { height: 100%; transition: width .3s; }
+.livro-lido { text-decoration: line-through; opacity: .6; }
+.destaque { font-weight: bold; }
+.meta-batida { color: green; }
+.card { border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin: 8px 0; }
+.escuro { background: #222; color: #eee; }
+</style>
