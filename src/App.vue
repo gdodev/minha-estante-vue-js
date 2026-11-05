@@ -14,7 +14,7 @@ const atributosRodape = {
 const atributo = 'title';
 
 // Etapa #2
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 
 const livros = ref([
   { id: 1, titulo: 'Dom Casmurro', autor: 'Machado de Assis', paginas: 256, lido: true, nota: 5 },
@@ -23,7 +23,7 @@ const livros = ref([
 ]);
 
 const usuario = reactive({
-  nome: 'Guilherme',
+  nome: 'Guilherme de Oliveira',
   metaAnual: 12,
 });
 
@@ -45,6 +45,42 @@ function adicionarLivroTeste() {
 function marcarPrimeiroComoLido() {
   livros.value[1].lido = true;
 }
+
+const livrosLidos = computed(() => livros.value.filter((livro) => livro.lido));
+
+const totalLidos = computed(() => livrosLidos.value.length);
+
+const totalPaginasLidas = computed(() =>
+  livrosLidos.value.reduce((total, livro) => total + livro.paginas, 0)
+);
+
+const progressoMeta = computed(() => {
+  return Math.min(100, Math.floor((totalLidos.value / usuario.metaAnual) * 100));
+});
+
+const livrosOrdenados = computed(() =>
+  livros.value.toSorted((a, b) => a.titulo.localeCompare(b.titulo))
+);
+
+const mediaNotas = computed(() => {
+  const lidos = livrosLidos.value;
+  if (lidos.length === 0) {
+    return '-';
+  }
+  const soma = lidos.reduce((total, livro) => total + livro.nota, 0);
+  return (soma / lidos.length).toFixed(1);
+});
+
+const primeiroNome = computed({
+  get() {
+    return usuario.nome.trim().split(/\s+/)[0];
+  },
+  set(novoPrimeiroNome) {
+    const restoDoNome = usuario.nome.trim().split(/\s+/).slice(1);
+    usuario.nome = [novoPrimeiroNome.trim(), ...restoDoNome].filter(Boolean).join(' ');
+  },
+});
+
 </script>
 
 <template>
@@ -56,9 +92,19 @@ function marcarPrimeiroComoLido() {
   <footer v-bind="atributosRodape">{{ anoAtual }}</footer>
   <p>Olá, {{ usuario.nome }}! Sua meta é ler {{ usuario.metaAnual }} livros.</p>
   <p>Quantidade de livros: {{ livros.length }}</p>
-  <button @click="aumentarMeta">Aumentar meta</button>
+  <button @click="aumentarMeta">+1 na meta</button>
   <br><button @click="adicionarLivroTeste">Adicionar livro teste</button>
   <p>Primeiro livro está lido? {{ livros[1].lido }}</p>
   <br><button @click="marcarPrimeiroComoLido">Marcar primeiro como lido</button>
+  <div style="padding: 0px 8px; border: 1px solid black; margin-top: 8px;">
+    <p>Quantidade de livros lidos: {{ totalLidos }}</p>
+    <p>Quantidade de páginas lidas: {{ totalPaginasLidas }}</p>
+    <p>Progresso da meta: {{ progressoMeta }}%</p>
+    <p>Livros ordenados por nome: {{ livrosOrdenados.map((livro) => livro.titulo).join() }}</p>
+    <p>Média das notas dos livros lidos: {{ mediaNotas }}</p>
+    <p>Primeiro nome: {{ primeiroNome }}</p>
+<p>Nome completo: {{ usuario.nome }}</p>
+<button @click="primeiroNome = 'João'">Trocar primeiro nome</button>
+  </div>
   <br><small>v{{ $versao }}</small>
 </template>
