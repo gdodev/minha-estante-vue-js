@@ -128,6 +128,52 @@ const livrosFiltrados = computed(() => {
   if (filtro.value === "nao-lidos") return lista.filter((livro) => !livro.lido);
   return lista; // 'todos'
 });
+
+function alternarLido(livro) {
+  livro.lido = !livro.lido;
+}
+
+function removerLivro(idLivro) {
+  const index = livros.value.findIndex((livro) => livro.id === idLivro);
+  // console.log(`[removerLivro] index: ${index}`);
+  if (index !== -1) {
+    let text = "Tem certeza que deseja remover o livro?";
+    if (confirm(text) == true) {
+      livros.value.splice(index, 1);
+    }
+  }
+}
+const idsLivrosDetalhes = ref([]);
+
+function avaliarLivro(idLivro, nota) {
+  const index = livros.value.findIndex((livro) => livro.id === idLivro);
+  if (index !== -1) {
+    livros.value[index].nota = nota;
+  }
+}
+
+function alternarDetalhes(idLivro) {
+  const index = idsLivrosDetalhes.value.indexOf(idLivro);
+  if (index >= 0) {
+    idsLivrosDetalhes.value.splice(index, 1);
+  } else {
+    idsLivrosDetalhes.value.push(idLivro);
+  }
+}
+
+function identificarCliqueLinha(livro) {
+  console.log("[identificarCliqueLinha] clicou no livro", livro.titulo);
+}
+
+function logEvento(mensagem, evento) {
+  console.log(
+    `[logEvento] mensagem: "${mensagem}", evento.target.tagName: ${evento.target.tagName}`,
+  );
+}
+
+function ocultarTodosDetalhes() {
+  idsLivrosDetalhes.value.splice(0);
+}
 </script>
 
 <template>
@@ -156,6 +202,8 @@ const livrosFiltrados = computed(() => {
   <div
     v-show="mostrarEstatisticas"
     style="padding: 0px 8px; border: 1px solid black; margin-top: 8px"
+    tabindex="0"
+    @keyup.esc="ocultarTodosDetalhes"
   >
     <label> <input type="radio" value="todos" v-model="filtro" /> Todos </label>
     <label> <input type="radio" value="lidos" v-model="filtro" /> Lidos </label>
@@ -168,7 +216,7 @@ const livrosFiltrados = computed(() => {
       Progresso da meta: {{ progressoMeta }}%
     </p>
     <!-- <p>Livros ordenados por nome: {{ livrosOrdenados.map((livro) => livro.titulo).join() }}</p> -->
-    <p style="color: red" v-if="livrosFiltrados.length === 0">
+    <p v-if="livrosFiltrados.length === 0" style="color: red">
       Nenhum livro neste filtro
     </p>
     <ul v-else>
@@ -176,13 +224,32 @@ const livrosFiltrados = computed(() => {
         v-for="(livro, index) in livrosFiltrados"
         :key="livro.id"
         class="card"
+        @click="identificarCliqueLinha(livro)"
       >
         <span :class="{ 'livro-lido': livro.lido }">
           {{ index + 1 }}. {{ livro.titulo }}, de {{ livro.autor }}
         </span>
-        <span v-for="n in 5" :key="n">{{ n <= livro.nota ? "⭐" : "☆" }}</span>
+        <!-- O modificador stop serve
+         para o evento de clique não 
+         subir para o li e disparar a
+         função identificarCliqueLinha -->
+        <span v-for="n in 5" :key="n" @click.stop="avaliarLivro(livro.id, n)">{{
+          n <= livro.nota ? "⭐" : "☆"
+        }}</span>
+        <button @click.stop="alternarLido(livro)">
+          {{ livro.lido ? "✔ Lido" : "↺ Não lido" }}
+        </button>
+        <button @click.stop="removerLivro(livro.id)">🗑 Remover livro</button>
+        <button
+          @click.stop="
+            alternarDetalhes(livro.id);
+            logEvento('detalhes', $event);
+          "
+        >
+          Detalhes
+        </button>
 
-        <ul>
+        <ul v-if="idsLivrosDetalhes.includes(livro.id)">
           <li v-for="(valor, chave) in livro" :key="chave">
             {{ chave }}: {{ valor }}
           </li>
