@@ -29,6 +29,7 @@ import {
 // Etapa #12
 // Registro local: basta importar no <script setup> para usar no template.
 import LivroItem from "./components/LivroItem.vue";
+import BarraProgresso from "./components/BarraProgresso.vue";
 
 const inputTitulo = useTemplateRef("input-titulo");
 const itensLista = useTemplateRef("itens-lista");
@@ -186,12 +187,6 @@ watch(progressoMeta, (progressoAtualizado, progressoAntigo) => {
   if (progressoAtualizado === 100 && progressoAntigo !== 100) {
     alert("🎉 Parabéns, meta batida!");
   }
-});
-
-const corBarra = computed(() => {
-  if (progressoMeta.value >= 70) return "var(--progresso-alto)"; // verde: meta batida
-  if (progressoMeta.value >= 30) return "var(--progresso-medio)"; // amarelo: mais da metade
-  return "var(--progresso-baixo)"; // vermelho: menos da metade
 });
 
 const livrosOrdenados = computed(() =>
@@ -468,12 +463,7 @@ watchEffect(() => {
           <button @click="aumentarMeta">+1 na meta</button>
 
           <template v-if="livros.length > 0">
-            <div class="barra">
-              <div
-                class="barra-preenchida"
-                :style="{ width: progressoMeta + '%', background: corBarra }"
-              ></div>
-            </div>
+            <BarraProgresso :progresso="progressoMeta" />
             <p v-if="progressoMeta === 0">Bora começar! 📖</p>
             <p v-else-if="progressoMeta < 50">Bom começo, continue!</p>
             <p v-else-if="progressoMeta < 100">Falta pouco! 🔥</p>
@@ -813,7 +803,7 @@ watchEffect(() => {
   --sucesso: #3f7d4e;
   --erro: #b4423a;
 
-  /* Barra de progresso da meta (usadas no computed corBarra) */
+  /* Barra de progresso da meta (usadas no componente BarraProgresso) */
   --progresso-baixo: #c0503f;
   --progresso-medio: #d9a13b;
   --progresso-alto: #3f7d4e;
@@ -1013,20 +1003,7 @@ input[type="checkbox"] {
 }
 
 /* ---------- Meta / barra de progresso ---------- */
-.barra {
-  background: var(--borda);
-  border-radius: 999px;
-  height: 14px;
-  overflow: hidden;
-  margin-top: 16px;
-}
-.barra-preenchida {
-  height: 100%;
-  border-radius: 999px;
-  transition:
-    width 0.4s ease,
-    background 0.4s ease;
-}
+
 .meta-batida {
   color: var(--sucesso);
   font-weight: 600;
