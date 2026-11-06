@@ -21,7 +21,34 @@ import {
   watch,
   onWatcherCleanup,
   watchEffect,
+  useTemplateRef,
+  onMounted,
+  nextTick,
 } from "vue";
+
+const inputTitulo = useTemplateRef("input-titulo");
+const itensLista = useTemplateRef("itens-lista");
+const inputBusca = useTemplateRef("input-busca");
+
+onMounted(() => {
+  inputTitulo.value.focus();
+
+  window.addEventListener("keydown", (evento) => {
+    if (evento.key !== "/") return;
+
+    // Se o usuário está digitando em algum campo, "/" é só um caractere
+    const alvo = evento.target;
+    const digitando =
+      alvo.tagName === "INPUT" ||
+      alvo.tagName === "TEXTAREA" ||
+      alvo.tagName === "SELECT" ||
+      alvo.isContentEditable;
+    if (digitando) return;
+
+    evento.preventDefault(); // impede que a "/" seja digitada no input
+    inputBusca.value.focus();
+  });
+});
 
 const CHAVE_TEMA_ESCURO = "tema-escuro";
 const CHAVE_USUARIO = "usuario";
@@ -264,18 +291,23 @@ function livroVazio() {
 
 const novoLivro = reactive(livroVazio());
 
-function adicionarLivro() {
+async function adicionarLivro() {
   // O spread (...) cria um objeto NOVO com uma cópia dos campos do formulário.
   // Sem ele, push(novoLivro) colocaria na lista o próprio objeto do formulário
   // (mesma referência): limpar ou editar o formulário alteraria o livro também.
   // A cópia é rasa, então o array de tags também precisa ser copiado com [...].
-  livros.value.push({
-    ...novoLivro,
-    tags: [...novoLivro.tags],
-    id: Date.now(),
-    nota: 0,
-  });
+  const id = Date.now();
+  livros.value.push({ ...novoLivro, tags: [...novoLivro.tags], id, nota: 0 });
   Object.assign(novoLivro, livroVazio());
+  inputTitulo.value.focus();
+
+  await nextTick(); // agora o <li> novo já existe no DOM
+  rolarAteLivro(id);
+}
+
+function rolarAteLivro(id) {
+  const elemento = itensLista.value?.find((li) => li.dataset.id === String(id));
+  elemento?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 // Adiciona um livro vindo da busca na Open Library.
@@ -507,6 +539,8 @@ watchEffect(() => {
                 :key="livro.id"
                 class="card"
                 @click="identificarCliqueLinha(livro)"
+                ref="itens-lista"
+                :data-id="livro.id"
               >
                 <span :class="{ 'livro-lido': livro.lido }">
                   {{ index + 1 }}. {{ livro.titulo }}, de {{ livro.autor }}
@@ -589,6 +623,7 @@ watchEffect(() => {
                 placeholder="Digite ao menos 3 letras do título"
                 aria-label="Buscar livro pelo título"
                 autocomplete="off"
+                ref="input-busca"
               />
             </div>
 
@@ -632,6 +667,7 @@ watchEffect(() => {
                   type="text"
                   id="titulo"
                   v-model.trim="novoLivro.titulo"
+                  ref="input-titulo"
                   required
                 />
               </div>
