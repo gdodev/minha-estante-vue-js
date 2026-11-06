@@ -26,6 +26,10 @@ import {
   nextTick,
 } from "vue";
 
+// Etapa #12
+// Registro local: basta importar no <script setup> para usar no template.
+import LivroItem from "./components/LivroItem.vue";
+
 const inputTitulo = useTemplateRef("input-titulo");
 const itensLista = useTemplateRef("itens-lista");
 const inputBusca = useTemplateRef("input-busca");
@@ -306,7 +310,11 @@ async function adicionarLivro() {
 }
 
 function rolarAteLivro(id) {
-  const elemento = itensLista.value?.find((li) => li.dataset.id === String(id));
+  // Com o ref num COMPONENTE, cada item é a instância do LivroItem, e não
+  // o <li>. O $el é o elemento raiz do componente (o <li> de verdade).
+  const elemento = itensLista.value
+    ?.map((item) => item.$el)
+    .find((li) => li.dataset.id === String(id));
   elemento?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -534,69 +542,23 @@ watchEffect(() => {
               Nenhum livro neste filtro
             </p>
             <ul v-else class="lista-livros">
-              <li
+              <!-- O componente só emite eventos; quem altera os dados é o App.
+               @click e :data-id vão parar no <li> raiz do LivroItem. -->
+              <LivroItem
                 v-for="(livro, index) in livrosFiltrados"
                 :key="livro.id"
-                class="card"
-                @click="identificarCliqueLinha(livro)"
                 ref="itens-lista"
+                :livro="livro"
+                :posicao="index + 1"
+                :detalhes-abertos="idsLivrosDetalhes.includes(livro.id)"
                 :data-id="livro.id"
-              >
-                <span :class="{ 'livro-lido': livro.lido }">
-                  {{ index + 1 }}. {{ livro.titulo }}, de {{ livro.autor }}
-                </span>
-                <!-- Monta "gênero · formato": o array junta os dois valores,
-                 o filter(Boolean) descarta os vazios ('' ou undefined) e o
-                 join(" · ") une o que sobrou, com o separador só entre itens.
-                 Assim um livro sem gênero mostra "(E-book)", e não "( · E-book)". -->
-                <small v-if="livro.genero || livro.formato">
-                  ({{
-                    [livro.genero, livro.formato].filter(Boolean).join(" · ")
-                  }})
-                </small>
-                <!-- O modificador stop serve
-                 para o evento de clique não
-                 subir para o li e disparar a
-                 função identificarCliqueLinha -->
-                <span class="estrelas">
-                  <span
-                    v-for="n in 5"
-                    :key="n"
-                    class="estrela"
-                    @click.stop="avaliarLivro(livro.id, n)"
-                    >{{ n <= livro.nota ? "⭐" : "☆" }}</span
-                  >
-                </span>
-
-                <div class="acoes">
-                  <button @click.stop="alternarLido(livro)">
-                    {{ livro.lido ? "✔ Lido" : "↺ Não lido" }}
-                  </button>
-                  <button @click.stop="removerLivro(livro.id)">
-                    🗑 Remover livro
-                  </button>
-                  <button
-                    @click.stop="
-                      alternarDetalhes(livro.id);
-                      logEvento('detalhes', $event);
-                    "
-                  >
-                    Detalhes
-                  </button>
-                </div>
-
-                <div
-                  v-if="idsLivrosDetalhes.includes(livro.id)"
-                  class="detalhes"
-                >
-                  <ul>
-                    <li v-for="(valor, chave) in livro" :key="chave">
-                      {{ chave }}: {{ valor }}
-                    </li>
-                  </ul>
-                  <input v-model="livro.titulo" />
-                </div>
-              </li>
+                @click="identificarCliqueLinha(livro)"
+                @alternar-lido="alternarLido(livro)"
+                @remover="removerLivro(livro.id)"
+                @avaliar="(nota) => avaliarLivro(livro.id, nota)"
+                @alternar-detalhes="alternarDetalhes(livro.id)"
+                @editar-titulo="(titulo) => (livro.titulo = titulo)"
+              />
             </ul>
           </div>
         </section>
@@ -1141,50 +1103,15 @@ input[type="checkbox"] {
 .lista-livros .card {
   cursor: pointer;
 }
-.card .acoes {
-  margin-bottom: 0;
-}
 .lista-livros .card:hover {
   box-shadow: var(--sombra);
   transform: translateY(-1px);
 }
-.card small {
-  color: var(--texto-suave);
-  margin: 0 6px;
-}
-
-.estrelas {
-  white-space: nowrap; /* as 5 estrelas sempre na mesma linha */
-}
-.estrela {
-  cursor: pointer;
-  font-size: 1.05rem;
-  transition: transform 0.1s;
-  display: inline-block;
-}
-.estrela:hover {
-  transform: scale(1.25);
-}
+/* Os estilos de dentro do item (estrelas, detalhes...) ficam no LivroItem.vue */
 
 .livro-lido {
   text-decoration: line-through;
   opacity: 0.6;
-}
-
-.detalhes {
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--fundo);
-  border-radius: 8px;
-  font-size: 0.85rem;
-}
-.detalhes ul {
-  margin: 0 0 8px;
-  padding-left: 18px;
-  font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
-}
-.detalhes input {
-  width: 100%;
 }
 
 /* ---------- Busca na API ---------- */
