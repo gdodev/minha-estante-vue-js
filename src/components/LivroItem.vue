@@ -71,9 +71,25 @@ const emit = defineEmits([
 </template>
 
 <style scoped>
-/* O visual do cartão em si (.card, hover, cursor) continua no App.vue:
-   o <style scoped> do pai alcança o elemento RAIZ do filho (este <li>),
-   mas não os elementos de dentro. Por isso os estilos abaixo moram aqui. */
+/* O visual do cartão mora aqui. Antes ele ficava no App.vue, porque o
+   <style scoped> do pai alcança o elemento RAIZ do filho (este <li>).
+   Agora o pai deste componente é a AbaLista, então o App não o alcança mais. */
+.card {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-left: 4px solid var(--destaque);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.card:hover {
+  box-shadow: var(--sombra);
+  transform: translateY(-1px);
+}
 
 .card small {
   color: var(--texto-suave);

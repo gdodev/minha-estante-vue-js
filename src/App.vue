@@ -28,12 +28,14 @@ import {
 
 // Etapa #12
 // Registro local: basta importar no <script setup> para usar no template.
-import LivroItem from "./components/LivroItem.vue";
-import BarraProgresso from "./components/BarraProgresso.vue";
+import CardSecao from "./components/CardSecao.vue";
+import AbaLista from "./components/AbaLista.vue";
+import AbaEstatisticas from "./components/AbaEstatisticas.vue";
 
 const inputTitulo = useTemplateRef("input-titulo");
-const itensLista = useTemplateRef("itens-lista");
 const inputBusca = useTemplateRef("input-busca");
+// Instância da aba que estiver na tela (AbaLista ou AbaEstatisticas)
+const componenteAba = useTemplateRef("componente-aba");
 
 onMounted(() => {
   inputTitulo.value.focus();
@@ -218,15 +220,40 @@ function limparEstante() {
   livros.value = [];
 }
 
-const mostrarEstatisticas = ref(true);
-const filtro = ref("todos");
+// Etapa #12: abas com componente dinâmico
+// O filtro agora mora dentro da AbaLista (estado local da aba).
+const abaAtual = ref("lista");
 
-const livrosFiltrados = computed(() => {
-  const lista = livrosOrdenados.value;
-  if (filtro.value === "lidos") return lista.filter((livro) => livro.lido);
-  if (filtro.value === "nao-lidos") return lista.filter((livro) => !livro.lido);
-  return lista; // 'todos'
+// Cada aba recebe props diferentes. Montar o objeto conforme a aba evita
+// passar, por exemplo, :livros para a AbaEstatisticas, que não declara
+// essa prop (ela cairia como atributo HTML no elemento raiz).
+// No v-bind, chaves "onAlgumaCoisa" viram listeners: onAlternarLido
+// equivale a @alternar-lido.
+const propsDaAba = computed(() => {
+  if (abaAtual.value === "lista") {
+    return {
+      livros: livrosOrdenados.value,
+      idsDetalhes: idsLivrosDetalhes.value,
+      onAlternarLido: alternarLido,
+      onRemover: removerLivro,
+      onAvaliar: avaliarLivro,
+      onAlternarDetalhes: alternarDetalhes,
+      onEditarTitulo: editarTitulo,
+      onOcultarDetalhes: ocultarTodosDetalhes,
+    };
+  }
+  return {
+    totalLidos: totalLidos.value,
+    totalPaginasLidas: totalPaginasLidas.value,
+    progressoMeta: progressoMeta.value,
+    mediaNotas: mediaNotas.value,
+  };
 });
+
+function editarTitulo(idLivro, titulo) {
+  const livro = livros.value.find((livro) => livro.id === idLivro);
+  if (livro) livro.titulo = titulo;
+}
 
 function alternarLido(livro) {
   livro.lido = !livro.lido;
@@ -258,10 +285,6 @@ function alternarDetalhes(idLivro) {
   } else {
     idsLivrosDetalhes.value.push(idLivro);
   }
-}
-
-function identificarCliqueLinha(livro) {
-  console.log("[identificarCliqueLinha] clicou no livro", livro.titulo);
 }
 
 function logEvento(mensagem, evento) {
@@ -301,16 +324,9 @@ async function adicionarLivro() {
   inputTitulo.value.focus();
 
   await nextTick(); // agora o <li> novo já existe no DOM
-  rolarAteLivro(id);
-}
-
-function rolarAteLivro(id) {
-  // Com o ref num COMPONENTE, cada item é a instância do LivroItem, e não
-  // o <li>. O $el é o elemento raiz do componente (o <li> de verdade).
-  const elemento = itensLista.value
-    ?.map((item) => item.$el)
-    .find((li) => li.dataset.id === String(id));
-  elemento?.scrollIntoView({ behavior: "smooth", block: "center" });
+  // A lista está dentro da AbaLista, que expõe rolarAteLivro (defineExpose).
+  // Se a aba visível for a de estatísticas, o método não existe e nada acontece.
+  componenteAba.value?.rolarAteLivro?.(id);
 }
 
 // Adiciona um livro vindo da busca na Open Library.
@@ -454,20 +470,15 @@ watchEffect(() => {
     <main>
       <div class="coluna">
         <!-- ===================== META DE LEITURA ===================== -->
-        <section class="regiao regiao-meta">
-          <h2>Meta de leitura</h2>
+        <CardSecao titulo="Meta de leitura" class="regiao-meta">
           <p>
             Olá, {{ usuario.nome }}! Sua meta é ler
             {{ usuario.metaAnual }} livros.
           </p>
           <button @click="aumentarMeta">+1 na meta</button>
 
+          <!-- A barra e a mensagem motivacional foram para a AbaEstatisticas -->
           <template v-if="livros.length > 0">
-            <BarraProgresso :progresso="progressoMeta" />
-            <p v-if="progressoMeta === 0">Bora começar! 📖</p>
-            <p v-else-if="progressoMeta < 50">Bom começo, continue!</p>
-            <p v-else-if="progressoMeta < 100">Falta pouco! 🔥</p>
-            <p v-else>Meta batida! 🎉</p>
             <!-- <p :class="['card', livros[0].lido ? 'livro-lido' : '']">{{ livros[0].titulo }}</p>
             <p :class="['card', livros[1].lido ? 'livro-lido' : '']">{{ livros[1].titulo }}</p>
             <p :class="['card', livros[2].lido ? 'livro-lido' : '']">{{ livros[2].titulo }}</p> -->
@@ -479,79 +490,45 @@ watchEffect(() => {
               {{ livro.titulo }}
             </p>
           </template>
-        </section>
+        </CardSecao>
 
         <!-- ===================== ESTANTE ===================== -->
-        <section class="regiao regiao-estante">
-          <h2>Minha estante</h2>
+        <CardSecao titulo="Minha estante" class="regiao-estante">
           <p>Quantidade de livros: {{ livros.length }}</p>
 
           <div class="acoes">
-            <button @click="mostrarEstatisticas = !mostrarEstatisticas">
-              {{ mostrarEstatisticas ? "Ocultar" : "Mostrar" }} estatísticas
-            </button>
             <button @click="limparEstante">Limpar estante</button>
           </div>
 
-          <div
-            v-show="mostrarEstatisticas"
-            class="painel"
-            tabindex="0"
-            @keyup.esc="ocultarTodosDetalhes"
-          >
-            <!-- Estatísticas -->
-            <div class="estatisticas">
-              <p>Quantidade de livros lidos: {{ totalLidos }}</p>
-              <p>Quantidade de páginas lidas: {{ totalPaginasLidas }}</p>
-              <p :class="{ 'meta-batida': progressoMeta === 100 }">
-                Progresso da meta: {{ progressoMeta }}%
-              </p>
-              <p>Média das notas dos livros lidos: {{ mediaNotas }}</p>
-            </div>
-
-            <!-- Filtro -->
-            <fieldset class="filtro">
-              <legend>Filtrar</legend>
-              <label
-                ><input type="radio" value="todos" v-model="filtro" />
-                Todos</label
-              >
-              <label
-                ><input type="radio" value="lidos" v-model="filtro" />
-                Lidos</label
-              >
-              <label>
-                <input type="radio" value="nao-lidos" v-model="filtro" /> Não
-                lidos
-              </label>
-            </fieldset>
-
-            <!-- Lista de livros -->
-            <!-- <p>Livros ordenados por nome: {{ livrosOrdenados.map((livro) => livro.titulo).join() }}</p> -->
-            <p v-if="livrosFiltrados.length === 0" class="aviso">
-              Nenhum livro neste filtro
-            </p>
-            <ul v-else class="lista-livros">
-              <!-- O componente só emite eventos; quem altera os dados é o App.
-               @click e :data-id vão parar no <li> raiz do LivroItem. -->
-              <LivroItem
-                v-for="(livro, index) in livrosFiltrados"
-                :key="livro.id"
-                ref="itens-lista"
-                :livro="livro"
-                :posicao="index + 1"
-                :detalhes-abertos="idsLivrosDetalhes.includes(livro.id)"
-                :data-id="livro.id"
-                @click="identificarCliqueLinha(livro)"
-                @alternar-lido="alternarLido(livro)"
-                @remover="removerLivro(livro.id)"
-                @avaliar="(nota) => avaliarLivro(livro.id, nota)"
-                @alternar-detalhes="alternarDetalhes(livro.id)"
-                @editar-titulo="(titulo) => (livro.titulo = titulo)"
-              />
-            </ul>
+          <!-- Botões das abas: só trocam o valor de abaAtual -->
+          <div class="abas" role="group" aria-label="Visualização da estante">
+            <button
+              type="button"
+              :class="{ ativa: abaAtual === 'lista' }"
+              :aria-pressed="abaAtual === 'lista'"
+              @click="abaAtual = 'lista'"
+            >
+              Lista
+            </button>
+            <button
+              type="button"
+              :class="{ ativa: abaAtual === 'estatisticas' }"
+              :aria-pressed="abaAtual === 'estatisticas'"
+              @click="abaAtual = 'estatisticas'"
+            >
+              Estatísticas
+            </button>
           </div>
-        </section>
+
+          <!-- Componente dinâmico: em <script setup>, o :is recebe o
+           componente IMPORTADO (não uma string). Ao trocar de aba, a
+           anterior é desmontada e a nova é montada do zero. -->
+          <component
+            :is="abaAtual === 'lista' ? AbaLista : AbaEstatisticas"
+            ref="componente-aba"
+            v-bind="propsDaAba"
+          />
+        </CardSecao>
       </div>
 
       <div class="coluna">
@@ -560,8 +537,7 @@ watchEffect(() => {
          coluna da direita, sem depender da altura das outras regiões. -->
         <div class="pilha-direita">
           <!-- ===================== BUSCAR LIVRO (API) ===================== -->
-          <section class="regiao regiao-buscar">
-            <h2>Buscar livro</h2>
+          <CardSecao titulo="Buscar livro" class="regiao-buscar">
             <p class="dica">
               Pesquise na Open Library e adicione à estante com um clique.
             </p>
@@ -606,11 +582,10 @@ watchEffect(() => {
                 </button>
               </li>
             </ul>
-          </section>
+          </CardSecao>
 
           <!-- ===================== ADICIONAR LIVRO ===================== -->
-          <section class="regiao regiao-adicionar">
-            <h2>Adicionar livro</h2>
+          <CardSecao titulo="Adicionar livro" class="regiao-adicionar">
 
             <form class="formulario" @submit.prevent="adicionarLivro">
               <div class="campo">
@@ -740,13 +715,12 @@ watchEffect(() => {
 
             <!-- Preview ao vivo do formulário (etapa 9, tarefa 3) -->
             <pre class="preview">{{ novoLivro }}</pre>
-          </section>
+          </CardSecao>
         </div>
 
         <!-- ===================== ÁREA DE TESTES ===================== -->
         <!-- Experimentos das etapas anteriores, mantidos para referência -->
-        <section class="regiao regiao-testes">
-          <h2>Área de testes</h2>
+        <CardSecao titulo="Área de testes" class="regiao-testes">
 
           <div class="acoes">
             <button :disabled="appEmManutencao">Adicionar livro</button>
@@ -764,7 +738,7 @@ watchEffect(() => {
           <p>Primeiro nome: {{ primeiroNome }}</p>
           <p>Nome completo: {{ usuario.nome }}</p>
           <button @click="primeiroNome = 'João'">Trocar primeiro nome</button>
-        </section>
+        </CardSecao>
       </div>
     </main>
 
@@ -969,19 +943,12 @@ input[type="checkbox"] {
   margin: 4px 0;
 }
 
-.regiao {
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  box-shadow: var(--sombra);
-  padding: 20px 24px;
-  margin-bottom: 24px;
-}
-.regiao h2 {
-  font-size: 1.4rem;
-  margin: 0 0 12px;
-}
-.regiao-testes {
+/* O visual base das regiões (.regiao e seu h2) agora mora no CardSecao.vue.
+   As classes regiao-* abaixo chegam à <section> raiz do CardSecao por
+   fallthrough, e o scoped do pai alcança o elemento raiz do filho.
+   O ".regiao" extra aumenta a especificidade, para estas regras vencerem
+   as do CardSecao independentemente da ordem em que os estilos carregam. */
+.regiao.regiao-testes {
   background: transparent;
   box-shadow: none;
   border-style: dashed;
@@ -1002,57 +969,37 @@ input[type="checkbox"] {
   margin: 12px 0;
 }
 
-/* ---------- Meta / barra de progresso ---------- */
-
-.meta-batida {
-  color: var(--sucesso);
-  font-weight: 600;
-}
-
 /* ---------- Estante ---------- */
-.painel {
-  margin-top: 8px;
-  border-radius: var(--raio);
-}
-
-/* A região da estante vira um "container": as estatísticas se ajustam
-   à largura DA REGIÃO (não da tela). 2 por linha; 4 quando houver espaço. */
+/* A região da estante vira um "container": as estatísticas (AbaEstatisticas)
+   se ajustam à largura DA REGIÃO, não da tela. Container queries não são
+   afetadas pelo scoped, então a regra @container pode ficar na aba. */
 .regiao-estante {
   container-type: inline-size;
 }
-.estatisticas {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.estatisticas p {
-  margin: 0;
-  padding: 12px 14px;
-  background: var(--destaque-claro);
-  border-radius: 10px;
-  font-size: 0.85rem;
-  color: var(--texto-suave);
-}
 
-@container (min-width: 640px) {
-  .estatisticas {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+/* Os estilos de dentro das abas (filtro, lista, estatísticas) ficam em
+   AbaLista.vue e AbaEstatisticas.vue; o visual do item, no LivroItem.vue. */
+.abas {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 4px 0 12px;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  background: var(--fundo);
 }
-
-.filtro {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  border: none;
-  padding: 0;
-  margin: 0 0 8px;
+.abas button {
+  border-color: transparent;
+  background: transparent;
 }
-.filtro legend {
+.abas button.ativa {
+  background: var(--destaque);
+  border-color: var(--destaque);
+  color: var(--texto-sobre-destaque);
   font-weight: 600;
-  margin-bottom: 6px;
-  padding: 0;
+}
+.abas button.ativa:hover {
+  color: var(--texto-sobre-destaque);
 }
 
 .aviso {
@@ -1060,12 +1007,7 @@ input[type="checkbox"] {
   font-style: italic;
 }
 
-.lista-livros {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
+/* Usado pelos títulos listados na meta de leitura */
 .card {
   background: var(--superficie);
   border: 1px solid var(--borda);
@@ -1073,18 +1015,7 @@ input[type="checkbox"] {
   border-radius: 10px;
   padding: 14px 16px;
   margin: 10px 0;
-  transition:
-    box-shadow 0.15s,
-    transform 0.15s;
 }
-.lista-livros .card {
-  cursor: pointer;
-}
-.lista-livros .card:hover {
-  box-shadow: var(--sombra);
-  transform: translateY(-1px);
-}
-/* Os estilos de dentro do item (estrelas, detalhes...) ficam no LivroItem.vue */
 
 .livro-lido {
   text-decoration: line-through;
@@ -1316,9 +1247,6 @@ input[type="checkbox"] {
   .coluna {
     display: contents;
   }
-  .regiao {
-    margin-bottom: 0;
-  }
   .regiao-meta {
     grid-area: meta;
   }
@@ -1338,9 +1266,6 @@ input[type="checkbox"] {
 
 /* ---------- Celular ---------- */
 @media (max-width: 480px) {
-  .regiao {
-    padding: 16px;
-  }
   .cabecalho h1 {
     font-size: 2rem;
   }
