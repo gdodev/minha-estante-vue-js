@@ -556,13 +556,17 @@ watchEffect(() => {
           </div>
 
           <!-- Componente dinâmico: em <script setup>, o :is recebe o
-           componente IMPORTADO (não uma string). Ao trocar de aba, a
-           anterior é desmontada e a nova é montada do zero. -->
-          <component
-            :is="abaAtual === 'lista' ? AbaLista : AbaEstatisticas"
-            ref="componente-aba"
-            v-bind="propsDaAba"
-          />
+           componente IMPORTADO (não uma string).
+           Etapa 13: o <KeepAlive> guarda a aba que sai em cache em vez de
+           desmontá-la. Assim o filtro da lista e a sugestão do dia são
+           preservados ao trocar de aba (o onMounted roda só uma vez). -->
+          <KeepAlive>
+            <component
+              :is="abaAtual === 'lista' ? AbaLista : AbaEstatisticas"
+              ref="componente-aba"
+              v-bind="propsDaAba"
+            />
+          </KeepAlive>
         </CardSecao>
       </div>
 

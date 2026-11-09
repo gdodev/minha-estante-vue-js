@@ -21,8 +21,8 @@ const emit = defineEmits([
 ]);
 
 // Estado LOCAL da aba: só a lista precisa saber qual filtro está ativo.
-// Como a aba é desmontada ao trocar para "Estatísticas", o filtro volta
-// para "todos" quando você retorna (a menos que haja um <KeepAlive>).
+// Como o App envolve as abas com <KeepAlive>, esta aba não é desmontada
+// ao trocar para "Estatísticas", e o filtro escolhido é preservado.
 const filtro = ref("todos");
 
 const livrosFiltrados = computed(() => {
