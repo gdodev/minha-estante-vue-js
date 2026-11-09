@@ -1,12 +1,16 @@
 <script setup>
 // Props: dados que o pai (App.vue) entrega. Elas são somente leitura aqui.
-defineProps({
+const props = defineProps({
   livro: { type: Object, required: true },
   detalhesAbertos: Boolean,
-  // Posição na lista (1, 2, 3...). Vem do index do v-for do pai, porque
-  // o componente sozinho não sabe em que lugar da lista está.
   posicao: Number,
 });
+
+import { onMounted, onUpdated, onUnmounted } from "vue";
+
+onMounted(() => console.log("montado:", props.livro.titulo));
+onUpdated(() => console.log("atualizado:", props.livro.titulo));
+onUnmounted(() => console.log("desmontado:", props.livro.titulo));
 
 // Eventos: em vez de alterar o livro, o componente AVISA o pai, e o pai
 // altera os dados (fluxo de dados de mão única).
