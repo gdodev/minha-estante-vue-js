@@ -23,6 +23,7 @@ import {
   watchEffect,
   useTemplateRef,
   onMounted,
+  onUnmounted,
   nextTick,
 } from "vue";
 
@@ -31,30 +32,37 @@ import {
 import CardSecao from "./components/CardSecao.vue";
 import AbaLista from "./components/AbaLista.vue";
 import AbaEstatisticas from "./components/AbaEstatisticas.vue";
+import SessaoLeitura from "./components/SessaoLeitura.vue";
 
 const inputTitulo = useTemplateRef("input-titulo");
 const inputBusca = useTemplateRef("input-busca");
 // Instância da aba que estiver na tela (AbaLista ou AbaEstatisticas)
 const componenteAba = useTemplateRef("componente-aba");
 
+function focarBuscaComAtalho(evento) {
+  if (evento.key !== "/") return;
+
+  // Se o usuário está digitando em algum campo, "/" é só um caractere
+  const alvo = evento.target;
+  const digitando =
+    alvo.tagName === "INPUT" ||
+    alvo.tagName === "TEXTAREA" ||
+    alvo.tagName === "SELECT" ||
+    alvo.isContentEditable;
+  if (digitando) return;
+
+  evento.preventDefault(); // impede que a "/" seja digitada no input
+  inputBusca.value.focus();
+}
+
 onMounted(() => {
   inputTitulo.value.focus();
 
-  window.addEventListener("keydown", (evento) => {
-    if (evento.key !== "/") return;
+  window.addEventListener("keydown", focarBuscaComAtalho);
+});
 
-    // Se o usuário está digitando em algum campo, "/" é só um caractere
-    const alvo = evento.target;
-    const digitando =
-      alvo.tagName === "INPUT" ||
-      alvo.tagName === "TEXTAREA" ||
-      alvo.tagName === "SELECT" ||
-      alvo.isContentEditable;
-    if (digitando) return;
-
-    evento.preventDefault(); // impede que a "/" seja digitada no input
-    inputBusca.value.focus();
-  });
+onUnmounted(() => {
+  window.removeEventListener("keydown", focarBuscaComAtalho);
 });
 
 const CHAVE_TEMA_ESCURO = "tema-escuro";
@@ -220,6 +228,24 @@ function limparEstante() {
   livros.value = [];
 }
 
+// Etapa #13: sessão de leitura
+// null = ninguém lendo; senão, o livro em leitura. É o MESMO objeto que está
+// em livros, então alterá-lo aqui é percebido pelo watch deep e vai para o
+// localStorage.
+const livroEmLeitura = ref(null);
+
+function iniciarLeitura(livro) {
+  livroEmLeitura.value = livro;
+}
+
+function finalizarLeitura(segundos) {
+  const livro = livroEmLeitura.value;
+  // ?? 0: livros antigos ainda não têm o campo segundosLidos (seria NaN)
+  livro.segundosLidos = (livro.segundosLidos ?? 0) + segundos;
+  // O v-if fica falso → a SessaoLeitura desmonta → onUnmounted → clearInterval
+  livroEmLeitura.value = null;
+}
+
 // Etapa #12: abas com componente dinâmico
 // O filtro agora mora dentro da AbaLista (estado local da aba).
 const abaAtual = ref("lista");
@@ -234,6 +260,8 @@ const propsDaAba = computed(() => {
     return {
       livros: livrosOrdenados.value,
       idsDetalhes: idsLivrosDetalhes.value,
+      leituraAtiva: livroEmLeitura.value !== null,
+      onLerAgora: iniciarLeitura,
       onAlternarLido: alternarLido,
       onRemover: removerLivro,
       onAvaliar: avaliarLivro,
@@ -500,6 +528,13 @@ watchEffect(() => {
             <button @click="limparEstante">Limpar estante</button>
           </div>
 
+          <!-- Fica fora das abas para continuar visível nas duas -->
+          <SessaoLeitura
+            v-if="livroEmLeitura"
+            :livro="livroEmLeitura"
+            @finalizar="finalizarLeitura"
+          />
+
           <!-- Botões das abas: só trocam o valor de abaAtual -->
           <div class="abas" role="group" aria-label="Visualização da estante">
             <button
@@ -586,7 +621,6 @@ watchEffect(() => {
 
           <!-- ===================== ADICIONAR LIVRO ===================== -->
           <CardSecao titulo="Adicionar livro" class="regiao-adicionar">
-
             <form class="formulario" @submit.prevent="adicionarLivro">
               <div class="campo">
                 <label for="titulo">Título:</label>
@@ -721,7 +755,6 @@ watchEffect(() => {
         <!-- ===================== ÁREA DE TESTES ===================== -->
         <!-- Experimentos das etapas anteriores, mantidos para referência -->
         <CardSecao titulo="Área de testes" class="regiao-testes">
-
           <div class="acoes">
             <button :disabled="appEmManutencao">Adicionar livro</button>
             <button @click="adicionarLivroTeste">Adicionar livro teste</button>

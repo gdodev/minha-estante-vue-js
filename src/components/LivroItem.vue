@@ -4,6 +4,9 @@ const props = defineProps({
   livro: { type: Object, required: true },
   detalhesAbertos: Boolean,
   posicao: Number,
+  // Verdadeiro enquanto QUALQUER livro estiver em leitura: bloqueia
+  // o "Ler agora" para não iniciar uma segunda sessão por cima da atual.
+  leituraAtiva: Boolean,
 });
 
 import { onMounted, onUpdated, onUnmounted } from "vue";
@@ -20,6 +23,7 @@ const emit = defineEmits([
   "avaliar",
   "alternar-detalhes",
   "editar-titulo",
+  "ler-agora",
 ]);
 </script>
 
@@ -55,6 +59,14 @@ const emit = defineEmits([
       </button>
       <button @click.stop="emit('remover')">🗑 Remover livro</button>
       <button @click.stop="emit('alternar-detalhes')">Detalhes</button>
+      <button
+        v-if="!livro.lido"
+        :disabled="leituraAtiva"
+        :title="leituraAtiva ? 'Pare a leitura atual antes de iniciar outra' : ''"
+        @click.stop="emit('ler-agora')"
+      >
+        ▶ Ler agora
+      </button>
     </div>
 
     <div v-if="detalhesAbertos" class="detalhes">

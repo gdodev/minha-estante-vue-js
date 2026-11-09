@@ -6,6 +6,7 @@ const props = defineProps({
   // Lista já ordenada pelo App
   livros: { type: Array, required: true },
   idsDetalhes: { type: Array, required: true },
+  leituraAtiva: Boolean,
 });
 
 // A aba não altera os livros: repassa os pedidos para o App, que é o dono dos dados.
@@ -16,6 +17,7 @@ const emit = defineEmits([
   "alternar-detalhes",
   "editar-titulo",
   "ocultar-detalhes",
+  "ler-agora",
 ]);
 
 // Estado LOCAL da aba: só a lista precisa saber qual filtro está ativo.
@@ -72,6 +74,7 @@ defineExpose({ rolarAteLivro });
         :livro="livro"
         :posicao="index + 1"
         :detalhes-abertos="idsDetalhes.includes(livro.id)"
+        :leitura-ativa="leituraAtiva"
         :data-id="livro.id"
         @click="identificarCliqueLinha(livro)"
         @alternar-lido="emit('alternar-lido', livro)"
@@ -79,6 +82,7 @@ defineExpose({ rolarAteLivro });
         @avaliar="(nota) => emit('avaliar', livro.id, nota)"
         @alternar-detalhes="emit('alternar-detalhes', livro.id)"
         @editar-titulo="(titulo) => emit('editar-titulo', livro.id, titulo)"
+        @ler-agora="emit('ler-agora', livro)"
       />
     </ul>
   </div>
